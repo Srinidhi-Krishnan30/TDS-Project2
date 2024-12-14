@@ -7,14 +7,18 @@ import json
 from typing import Dict, Any
 import openai
 
+# Ensure proper path handling for Windows
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
 # Set up OpenAI API (using AI Proxy)
-openai.api_base = "https://api.aiproxy.io/v1"
+openai.api_base = "https://aiproxy.sanand.workers.dev/openai/"
 openai.api_key = os.environ.get("AIPROXY_TOKEN")
 
 def load_data(filename: str) -> pd.DataFrame:
-    """Load CSV data with error handling."""
+    """Load CSV data with Windows-friendly error handling."""
     try:
-        df = pd.read_csv(filename)
+        # Use encoding that works well with Windows
+        df = pd.read_csv(filename, encoding='utf-8', low_memory=False)
         return df
     except Exception as e:
         print(f"Error loading data: {e}")
@@ -36,14 +40,18 @@ def perform_initial_analysis(df: pd.DataFrame) -> Dict[str, Any]:
 
 def generate_visualizations(df: pd.DataFrame):
     """Create multiple visualizations based on data."""
-    plt.figure(figsize=(10, 6))
+    plt.figure(figsize=(12, 6))
+    
+    # Ensure plots work on Windows
+    plt.clf()
     
     # Correlation Heatmap
     plt.subplot(1, 2, 1)
     numeric_columns = df.select_dtypes(include=['float64', 'int64']).columns
-    correlation_matrix = df[numeric_columns].corr()
-    sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', linewidths=0.5)
-    plt.title('Correlation Heatmap')
+    if len(numeric_columns) > 1:
+        correlation_matrix = df[numeric_columns].corr()
+        sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', linewidths=0.5)
+        plt.title('Correlation Heatmap')
     
     # Distribution of a key numeric column (if exists)
     plt.subplot(1, 2, 2)
@@ -53,7 +61,10 @@ def generate_visualizations(df: pd.DataFrame):
         plt.title(f'Distribution of {primary_column}')
     
     plt.tight_layout()
-    plt.savefig('data_analysis.png')
+    
+    # Use os.path.join for Windows path compatibility
+    output_path = os.path.join(os.getcwd(), 'data_analysis.png')
+    plt.savefig(output_path)
     plt.close()
 
 def ask_llm_for_insights(df: pd.DataFrame, analysis: Dict[str, Any]):
@@ -81,7 +92,9 @@ def ask_llm_for_insights(df: pd.DataFrame, analysis: Dict[str, Any]):
         
         narrative = response.choices[0].message.content
         
-        with open('README.md', 'w') as f:
+        # Use os.path.join for Windows path compatibility
+        readme_path = os.path.join(os.getcwd(), 'README.md')
+        with open(readme_path, 'w', encoding='utf-8') as f:
             f.write(narrative)
         
     except Exception as e:
@@ -89,7 +102,7 @@ def ask_llm_for_insights(df: pd.DataFrame, analysis: Dict[str, Any]):
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: python autolysis.py <dataset.csv>")
+        print("Usage: uv run autolysis.py <dataset.csv>")
         sys.exit(1)
     
     # Load the dataset
